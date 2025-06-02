@@ -1,0 +1,12 @@
+name: "Sample API Tests"
+base_url: "https://jsonplaceholder.typicode.com"
+tests:
+  - name: "Get single post"
+    method: "GET"
+    path: "/posts/1"
+    assertions:
+      - type: "status"
+        expected: 200
+      - type: "json_path"
+        target: "$.userId"
+        expected: 1

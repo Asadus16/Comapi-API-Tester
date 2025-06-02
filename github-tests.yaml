@@ -1,0 +1,18 @@
+name: "GitHub API Tests"
+base_url: "https://api.github.com"
+headers:
+  User-Agent: "Comapi/1.0"
+tests:
+  - name: "Get GitHub user"
+    method: "GET"
+    path: "/users/octocat"
+    assertions:
+      - type: "status"
+        expected: 200
+      - type: "json_path"
+        target: "login"
+        expected: "octocat"
+      - type: "json_path"
+        target: "public_repos"
+        operator: "greater_than"
+        expected: 0
