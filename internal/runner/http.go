@@ -30,7 +30,7 @@ func NewHTTPClient(baseURL string, defaultHeaders map[string]string) *HTTPClient
 	}
 }
 
-// ExecuteTest runs a single test case and returns the result
+// ExecuteTest runs a single test case and returns the result (legacy method)
 func (h *HTTPClient) ExecuteTest(testCase types.TestCase) types.TestResult {
 	startTime := time.Now()
 	
@@ -80,9 +80,85 @@ func (h *HTTPClient) ExecuteTest(testCase types.TestCase) types.TestResult {
 	return result
 }
 
-// makeRequest creates and executes the HTTP request
+// ExecuteTestWithFullURL runs a single test case with a complete URL
+func (h *HTTPClient) ExecuteTestWithFullURL(testCase types.TestCase) types.TestResult {
+	startTime := time.Now()
+	
+	result := types.TestResult{
+		TestName: testCase.Name,
+		Status:   types.StatusFail, // Default to fail, change to pass if all assertions pass
+		Request: types.RequestInfo{
+			Method: testCase.Method,
+			URL:    testCase.URL, // Use the complete URL
+		},
+	}
+
+	// Make the HTTP request with full URL
+	resp, err := h.makeRequestWithFullURL(testCase)
+	if err != nil {
+		result.Error = fmt.Sprintf("Request failed: %v", err)
+		result.Duration = time.Since(startTime)
+		return result
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		result.Error = fmt.Sprintf("Failed to read response body: %v", err)
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Fill in response info
+	result.Response = types.ResponseInfo{
+		StatusCode: resp.StatusCode,
+		Headers:    convertHeaders(resp.Header),
+		Body:       string(bodyBytes),
+		Size:       int64(len(bodyBytes)),
+	}
+	
+	// Fill in request info
+	result.Request.Headers = h.mergeHeaders(testCase.Headers)
+	result.Request.Body = testCase.Body
+	
+	result.Duration = time.Since(startTime)
+
+	// Run assertions to determine if test passes or fails
+	assertion.CheckAssertions(testCase, &result)
+	
+	return result
+}
+
+// makeRequest creates and executes the HTTP request (legacy method)
 func (h *HTTPClient) makeRequest(testCase types.TestCase) (*http.Response, error) {
 	url := h.baseURL + testCase.Path
+	
+	// Create request body
+	var body io.Reader
+	if testCase.Body != "" {
+		body = bytes.NewBufferString(testCase.Body)
+	}
+	
+	// Create request
+	req, err := http.NewRequest(testCase.Method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	// Add headers (merge default headers with test-specific headers)
+	headers := h.mergeHeaders(testCase.Headers)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	
+	// Make the request
+	return h.client.Do(req)
+}
+
+// makeRequestWithFullURL creates and executes the HTTP request using complete URL
+func (h *HTTPClient) makeRequestWithFullURL(testCase types.TestCase) (*http.Response, error) {
+	url := testCase.URL
 	
 	// Create request body
 	var body io.Reader

@@ -18,7 +18,8 @@ type TestCase struct {
 	Name        string            `json:"name" yaml:"name"`
 	Description string            `json:"description,omitempty" yaml:"description,omitempty"`
 	Method      string            `json:"method" yaml:"method"`
-	Path        string            `json:"path" yaml:"path"`
+	Path        string            `json:"path" yaml:"path"`           // For backward compatibility
+	URL         string            `json:"url" yaml:"url"`             // New: complete URL
 	Headers     map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"`
 	Body        string            `json:"body,omitempty" yaml:"body,omitempty"`
 	Assertions  []Assertion       `json:"assertions" yaml:"assertions"`
